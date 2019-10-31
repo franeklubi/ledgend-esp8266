@@ -49,6 +49,7 @@ const char* PROGMEM html_root = R"=====(
                             connected = false;
                         } else {
                             connected = true;
+                            connected_network_info = this.responseText;
                             showConnectionInfo();
 
                             // show an empty table

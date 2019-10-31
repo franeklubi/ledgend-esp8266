@@ -23,7 +23,10 @@ void handleRoot() {
 
 void handleStatus() {
     if ( WiFi.status() == WL_CONNECTED ) {
-        server.send(200, "text/plain", "true");
+        server.send(
+            200, "text/plain",
+            String(WiFi.SSID())+" @ "+WiFi.localIP().toString()
+        );
     } else {
         server.send(200, "text/plain", "false");
     }
