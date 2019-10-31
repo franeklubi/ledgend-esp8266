@@ -6,7 +6,6 @@
 
 
 ESP8266WebServer server(80);
-
 char* ssid = "LEDGEND_X";
 char* pass = "";
 
@@ -15,6 +14,10 @@ WiFiUDP udp;
 const uint16_t udp_port = 10107;
 char udp_buffer[255];
 
+char* ws_msg_id = "ledgend;";
+uint8_t ws_msg_id_len;
+bool ws_found = false;
+char* ws_ip;
 
 void handleRoot() {
     server.send(200, "text/html", html_root);
@@ -74,6 +77,10 @@ void handleNotFound() {
 
 
 void listenUDP() {
+    if ( ws_found ) {
+        return;
+    }
+
     if ( udp.parsePacket() ) {
         uint8_t len = udp.read(udp_buffer, 255);
 
@@ -82,7 +89,21 @@ void listenUDP() {
             // null terminating the string
             udp_buffer[len] = 0;
         }
-        Serial.printf("Udp packet bby: %s\n\r", udp_buffer);
+
+        handleIP(len);
+    }
+}
+
+
+void handleIP(uint8_t buffer_len) {
+    if ( buffer_len <= ws_msg_id_len ) {
+        return;
+    }
+
+    int8_t cmp = strncmp(ws_msg_id, udp_buffer, ws_msg_id_len);
+    if ( cmp == 0 ) {
+        ws_ip = udp_buffer+ws_msg_id_len;
+        ws_found = true;
     }
 }
 
@@ -113,6 +134,8 @@ void setup() {
     server.begin();
 
     udp.begin(udp_port);
+
+    ws_msg_id_len = strlen(ws_msg_id);
 }
 
 
