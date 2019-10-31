@@ -1,5 +1,6 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
+#include <WiFiUdp.h>
 
 #include "webpages.h"
 
@@ -10,9 +11,15 @@ char* ssid = "LEDGEND_X";
 char* pass = "";
 
 
+WiFiUDP udp;
+const uint16_t udp_port = 10107;
+char udp_buffer[255];
+
+
 void handleRoot() {
     server.send(200, "text/html", html_root);
 }
+
 
 void handleStatus() {
     if ( WiFi.status() == WL_CONNECTED ) {
@@ -21,6 +28,7 @@ void handleStatus() {
         server.send(200, "text/plain", "false");
     }
 }
+
 
 void handleNetworks() {
     int n = WiFi.scanNetworks();
@@ -40,6 +48,7 @@ void handleNetworks() {
     server.send(200, "application/json", json_time);
 }
 
+
 void handleConnect() {
     String network_SSID = server.arg("SSID");
     String network_PASS = server.arg("PASS");
@@ -54,9 +63,24 @@ void handleConnect() {
     );
 }
 
+
 void handleNotFound() {
     server.sendHeader("Location", "/");
     server.send(303);
+}
+
+
+void listenUDP() {
+    if ( udp.parsePacket() ) {
+        uint8_t len = udp.read(udp_buffer, 255);
+
+        // if len is not equal 0
+        if ( len ) {
+            // null terminating the string
+            udp_buffer[len] = 0;
+        }
+        Serial.printf("Udp packet bby: %s\n\r", udp_buffer);
+    }
 }
 
 
@@ -84,9 +108,12 @@ void setup() {
     server.onNotFound(handleNotFound);
 
     server.begin();
+
+    udp.begin(udp_port);
 }
 
 
 void loop() {
     server.handleClient();
+    listenUDP();
 }
