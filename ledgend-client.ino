@@ -1,6 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <WiFiUdp.h>
+#include <WebSocketsClient.h>
 
 #include "webpages.h"
 
@@ -14,10 +15,14 @@ WiFiUDP udp;
 const uint16_t udp_port = 10107;
 char udp_buffer[255];
 
+
 char* ws_msg_id = "ledgend;";
 uint8_t ws_msg_id_len;
-bool ws_found = false;
+bool ws_address_found = false;
 char* ws_ip;
+
+WebSocketsClient web_socket;
+
 
 void handleRoot() {
     server.send(200, "text/html", html_root);
@@ -77,7 +82,7 @@ void handleNotFound() {
 
 
 void listenUDP() {
-    if ( ws_found ) {
+    if ( ws_address_found ) {
         return;
     }
 
@@ -103,8 +108,54 @@ void handleIP(uint8_t buffer_len) {
     int8_t cmp = strncmp(ws_msg_id, udp_buffer, ws_msg_id_len);
     if ( cmp == 0 ) {
         ws_ip = udp_buffer+ws_msg_id_len;
-        ws_found = true;
+        ws_address_found = true;
+
+        Serial.printf("Received websocket address: %s\n\r", ws_ip);
+        connectToWebsocket();
     }
+}
+
+
+void connectToWebsocket() {
+    Serial.println("Attempting ws connection");
+    if ( !ws_address_found ) {
+        Serial.println("Ws address not found yet!");
+        return;
+    }
+
+    web_socket.begin(ws_ip, udp_port, "/ws");
+    web_socket.onEvent(handleWebsocketEvent);
+}
+
+
+void handleWebsocketEvent(WStype_t type, uint8_t* payload, uint32_t length) {
+    switch(type) {
+        case WStype_DISCONNECTED:
+            Serial.printf("Websocket disconnected\n\r");
+            ws_address_found = false;
+            return;
+
+        case WStype_CONNECTED:
+            Serial.printf("Websocket connected to url: %s\n\r", payload);
+            return;
+
+        case WStype_TEXT:
+            Serial.println("TEXT");
+            break;
+
+        case WStype_BIN:
+            Serial.println("BIN");
+            break;
+
+        default:
+            return;
+    }
+
+    for ( uint32_t x = 0; x < length; x++ ) {
+        Serial.print(payload[x]);
+        Serial.print(" ");
+    }
+    Serial.print("\n");
 }
 
 
@@ -142,4 +193,5 @@ void setup() {
 void loop() {
     server.handleClient();
     listenUDP();
+    web_socket.loop();
 }
