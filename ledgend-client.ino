@@ -24,6 +24,14 @@ char* ws_ip;
 WebSocketsClient web_socket;
 
 
+typedef struct {
+    uint16_t address;
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+} Change;
+
+
 void handleRoot() {
     server.send(200, "text/html", html_root);
 }
@@ -128,6 +136,75 @@ void connectToWebsocket() {
 }
 
 
+void applyChanges(Change* changes, uint16_t no_changes) {
+    Serial.println("Applying changes");
+    for ( uint32_t x = 0; x < no_changes; x++ ) {
+        Serial.printf("CHANGE(%i): %i, %i, %i\n\r", changes[x].address, changes[x].r, changes[x].g, changes[x].b);
+    }
+}
+
+
+void parsePayload(uint8_t* payload, uint32_t length) {
+    if ( length < 5 ) {
+        Serial.println("Payload too short!");
+        return;
+    }
+
+    // draw out the preambule
+    uint8_t preambule = payload[0];
+
+    // leds' information start after preambule
+    uint32_t leds_length = length-1;
+    uint8_t* leds = payload+1;
+
+    // reading the preambule
+    uint8_t address_bytes = preambule & 0x0F;
+    // for later use if needed
+    // uint8_t other_options = (preambule & 0xF0) >> 4;
+
+    // r+g+b + number of address bytes
+    uint8_t change_size = 3+address_bytes;
+
+    if ( leds_length%change_size != 0 ) {
+        Serial.println("Invalid payload!");
+        return;
+    }
+
+    // allocating memory for Changes
+    uint16_t no_changes = leds_length/change_size;
+    void* temp_changes = malloc(no_changes*sizeof(Change));
+    if ( !temp_changes ) {
+        Serial.println("Can't malloc for changes!");
+        return;
+    }
+    Change* changes = (Change*) temp_changes;
+
+
+    // parsing payload for Changes
+    for ( uint16_t x = 0; x < no_changes; x++ ) {
+        Change new_change;
+
+        uint32_t curr_index = x*(3+address_bytes);
+
+        new_change.address = leds[curr_index];
+        if ( address_bytes == 2 ) {
+            new_change.address =
+                (new_change.address << 8) | uint16_t(leds[curr_index+1]);
+        }
+
+        new_change.r = leds[curr_index+1+address_bytes-1];
+        new_change.g = leds[curr_index+2+address_bytes-1];
+        new_change.b = leds[curr_index+3+address_bytes-1];
+
+        changes[x] = new_change;
+    }
+
+    applyChanges(changes, no_changes);
+
+    free(changes);
+}
+
+
 void handleWebsocketEvent(WStype_t type, uint8_t* payload, uint32_t length) {
     switch(type) {
         case WStype_DISCONNECTED:
@@ -151,36 +228,7 @@ void handleWebsocketEvent(WStype_t type, uint8_t* payload, uint32_t length) {
             return;
     }
 
-
-    if ( length < 5 ) {
-        Serial.println("Payload too short!");
-        return;
-    }
-
-    uint8_t preambule = payload[0];
-    uint8_t address_bytes = preambule & 0x0F;
-    // for later use if needed
-    // uint8_t other_options = (preambule & 0xF0) >> 4;
-
-    if ( (length-1)%(address_bytes+3) != 0 ) {
-        Serial.println("Invalid payload!");
-        return;
-    }
-
-    uint8_t* leds = payload+1;
-    for ( uint32_t x = 1; x < length; x += 3+address_bytes ) {
-        uint16_t led_address = 0;
-        led_address = payload[x];
-        if ( address_bytes == 2 ) {
-            led_address = (led_address << 8) | uint16_t(payload[x+1]);
-        }
-
-        uint8_t r = payload[x+1+address_bytes-1];
-        uint8_t g = payload[x+2+address_bytes-1];
-        uint8_t b = payload[x+3+address_bytes-1];
-
-        Serial.printf("%i: %i, %i, %i\n\r", led_address, r, g, b);
-    }
+    parsePayload(payload, length);
 }
 
 
