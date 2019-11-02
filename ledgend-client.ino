@@ -82,11 +82,11 @@ void handleNotFound() {
 
 
 void listenUDP() {
-    if ( ws_address_found ) {
-        return;
-    }
-
     if ( udp.parsePacket() ) {
+        if ( ws_address_found ) {
+            return;
+        }
+
         uint8_t len = udp.read(udp_buffer, 255);
 
         // if len is not equal 0
@@ -141,21 +141,46 @@ void handleWebsocketEvent(WStype_t type, uint8_t* payload, uint32_t length) {
 
         case WStype_TEXT:
             Serial.println("TEXT");
-            break;
+            Serial.printf("Message from server: %s", payload);
+            return;
 
         case WStype_BIN:
-            Serial.println("BIN");
             break;
 
         default:
             return;
     }
 
-    for ( uint32_t x = 0; x < length; x++ ) {
-        Serial.print(payload[x]);
-        Serial.print(" ");
+
+    if ( length < 5 ) {
+        Serial.println("Payload too short!");
+        return;
     }
-    Serial.print("\n");
+
+    uint8_t preambule = payload[0];
+    uint8_t address_bytes = preambule & 0x0F;
+    // for later use if needed
+    // uint8_t other_options = (preambule & 0xF0) >> 4;
+
+    if ( (length-1)%(address_bytes+3) != 0 ) {
+        Serial.println("Invalid payload!");
+        return;
+    }
+
+    uint8_t* leds = payload+1;
+    for ( uint32_t x = 1; x < length; x += 3+address_bytes ) {
+        uint16_t led_address = 0;
+        led_address = payload[x];
+        if ( address_bytes == 2 ) {
+            led_address = (led_address << 8) | uint16_t(payload[x+1]);
+        }
+
+        uint8_t r = payload[x+1+address_bytes-1];
+        uint8_t g = payload[x+2+address_bytes-1];
+        uint8_t b = payload[x+3+address_bytes-1];
+
+        Serial.printf("%i: %i, %i, %i\n\r", led_address, r, g, b);
+    }
 }
 
 
