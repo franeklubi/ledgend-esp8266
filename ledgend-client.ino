@@ -2,8 +2,14 @@
 #include <ESP8266WebServer.h>
 #include <WiFiUdp.h>
 #include <WebSocketsClient.h>
+#include <FastLED.h>
 
 #include "webpages.h"
+
+
+#define NO_LEDS 15
+#define LEDS_PIN 5
+CRGB leds[NO_LEDS];
 
 
 ESP8266WebServer server(80);
@@ -137,10 +143,20 @@ void connectToWebsocket() {
 
 
 void applyChanges(Change* changes, uint16_t no_changes) {
-    Serial.println("Applying changes");
     for ( uint32_t x = 0; x < no_changes; x++ ) {
-        Serial.printf("CHANGE(%i): %i, %i, %i\n\r", changes[x].address, changes[x].r, changes[x].g, changes[x].b);
+        if ( changes[x].address >= NO_LEDS ) {
+            Serial.println("Led address exceeds the number of leds");
+            return;
+        }
+
+
+        leds[changes[x].address] = CRGB(
+            changes[x].g,
+            changes[x].r,
+            changes[x].b
+        );
     }
+    FastLED.show();
 }
 
 
@@ -260,6 +276,8 @@ void setup() {
     udp.begin(udp_port);
 
     ws_msg_id_len = strlen(ws_msg_id);
+
+    FastLED.addLeds<WS2812B, LEDS_PIN>(leds, NO_LEDS);
 }
 
 
