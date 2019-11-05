@@ -5,14 +5,7 @@
 #include <WiFiUdp.h>
 #include <WebSocketsClient.h>
 
-
-// type Change holds the changed led's index and it's r, g, and b values
-typedef struct {
-    uint16_t address;
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-} Change;
+#include "leds.h"
 
 
 WiFiUDP udp;
