@@ -5,7 +5,7 @@ const char* PROGMEM html_root = R"=====(
 
 <html>
     <head>
-        <title>CHWDP</title>
+        <title>Ledgend</title>
         <meta charset="UTF-8">
     </head>
 
