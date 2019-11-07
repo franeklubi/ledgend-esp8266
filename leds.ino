@@ -1,9 +1,5 @@
 #include "leds.h"
 
-#define NO_LEDS     15
-#define LEDS_PIN    5
-CRGB leds[NO_LEDS];
-
 
 void setupLeds() {
     FastLED.addLeds<WS2812B, LEDS_PIN>(leds, NO_LEDS);

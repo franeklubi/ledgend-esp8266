@@ -5,6 +5,10 @@
 #include <FastLED.h>
 
 
+#define NO_LEDS     15
+#define LEDS_PIN    5
+
+
 // type Change holds the changed led's index and it's r, g, and b values
 typedef struct {
     uint16_t address;
@@ -12,6 +16,9 @@ typedef struct {
     uint8_t g;
     uint8_t b;
 } Change;
+
+
+CRGB leds[NO_LEDS];
 
 
 void setupLeds();
